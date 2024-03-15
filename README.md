@@ -7,9 +7,6 @@ SystemVerilog components improving productivity of hardware designers. It is int
 Chisel(Scala) but has a focus on trying to have a design paradigm and syntax that will be more familiar to a
 hardware design engineer familiar with SystemVerilog.
 
-
-### Run the demo  (FIR Module)
-
 Prerequite:  A modern version of NodeJS installed  (perhaps v18 or greater)
 
 For MacBook M1/M2/M3 NodeJS installation: see link
@@ -23,7 +20,45 @@ $ sudo apt install nodejs
 $ node -v
 ```
 
+Editing TypeScript: 
 
+Visual Studio Code has great editing support for TypeScript and is recommended for this project.
+
+ESLint is a popular linter, which also supports TypeScript. The ESLint extension integrates ESLint into VS Code so you can see linting errors right in the editor and even quickly fix many of them with Quick Fixes. The ESLint plugin guide details how to configure ESLint for your TypeScript projects
+
+Install ESLint
+```bash
+$ npm install eslint
+$ npx eslint --init
+Need to install the following packages:
+eslint@8.57.0
+Ok to proceed? (y) y
+You can also run this command directly using 'npm init @eslint/config'.
+Need to install the following packages:
+@eslint/create-config@0.4.6
+Ok to proceed? (y) y
+✔ How would you like to use ESLint? · style
+✔ What type of modules does your project use? · esm
+✔ Which framework does your project use? · none
+✔ Does your project use TypeScript? · No / Yes
+✔ Where does your code run? · browser
+✔ How would you like to define a style for your project? · guide
+✔ Which style guide do you want to follow? · standard-with-typescript
+✔ What format do you want your config file to be in? · JSON
+Checking peerDependencies of eslint-config-standard-with-typescript@latest
+Local ESLint installation not found.
+The config that you've selected requires the following dependencies:
+
+eslint-config-standard-with-typescript@latest @typescript-eslint/eslint-plugin@^6.4.0 eslint@^8.0.1 eslint-plugin-import@^2.25.2 eslint-plugin-n@^15.0.0 || ^16.0.0  eslint-plugin-promise@^6.0.0 typescript@*
+✔ Would you like to install them now? · No / Yes
+✔ Which package manager do you want to use? · npm
+Installing eslint-config-standard-with-typescript@latest, @typescript-eslint/eslint-plugin@^6.4.0, eslint@^8.0.1, eslint-plugin-import@^2.25.2, eslint-plugin-n@^15.0.0 || ^16.0.0 , eslint-plugin-promise@^6.0.0, typescript@*
+
+added 237 packages, changed 1 package, and audited 241 packages in 46s
+```
+
+
+### Run the demo  (FIR Module)
 ```bash
 $ git clone https://github.com/avonancken/TSSV.git
 $ cd TSSV
