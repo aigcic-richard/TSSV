@@ -53,7 +53,11 @@ For Visual Studio Code GUI based linting, make sure install extensioin ESLint fr
 Verilator is an open source Verilog/SystemVerilog simulator.   It can also be used as a lint check of Verilog/SystemVerilog code.   
 
 #### Installation
-For Ubuntu 22.04 NodeJS installation:
+For macOS installation:
+```bash
+brew verilator
+```
+For Ubuntu 22.04 installation:
 ```bash
 sudo apt install verilator
 ```
@@ -79,5 +83,5 @@ npm run deploy-docs
 #### Viewing the TypeDoc Documentation
 [The TSSV TypeDoc generated Github Page can be accessed here](https://TypeScriptSystemVerilog.github.io/TSSV/index.html)
 ### Next Steps
-- [ ] implement Control Register generator
+- [ ] Implement Control Register generator
 - [ ] Decide approach to Bus fabrics and standardized interconnect
