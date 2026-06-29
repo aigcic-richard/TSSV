@@ -10,11 +10,28 @@ const myFir3 = new FIR({
     outWidth: 8,
     rShift: 7
 });
+const myFir3Sv = myFir3.writeSystemVerilog();
 try {
-    writeFileSync('sv-examples/FIR/myFIR3/myFIR3.sv', myFir3.writeSystemVerilog());
+    writeFileSync('sv-examples/FIR/myFIR3/myFIR3.sv', myFir3Sv);
 }
 catch (err) {
     console.error(err);
+}
+if (!myFir3Sv.includes('output logic signed [31:0] COEFF_0')) {
+    throw new Error('Default FIR coefficient register width should remain 32 bits');
+}
+const myFirCoeffWidth4 = new FIR({
+    name: 'myFIRCoeffWidth4',
+    numTaps: 3,
+    coefficients: [-2n, 1n, 3n],
+    coefficientsWidth: 4,
+    inWidth: 8,
+    outWidth: 8,
+    rShift: 2
+});
+const myFirCoeffWidth4Sv = myFirCoeffWidth4.writeSystemVerilog();
+if (!myFirCoeffWidth4Sv.includes('output logic signed [3:0] COEFF_0')) {
+    throw new Error('FIR coefficient registers should use coefficientsWidth when provided');
 }
 const tbBody = `
     // always accept output

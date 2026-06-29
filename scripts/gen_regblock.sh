@@ -96,6 +96,7 @@ if (def.repeatedRegister) {
   const desc       = rr.description   ?? '';
   const funcName   = 'create' + name.charAt(0).toUpperCase() + name.slice(1) + 'Def';
   const widthExpr  = widthParam ?? String(width);
+  const widthTypeImport = widthParam ? "import { type IntRange } from 'tssv/lib/core/TSSV'" : null;
 
   const templateRow = [
     prefix + '{i}',
@@ -129,7 +130,7 @@ if (def.repeatedRegister) {
   // Build the factory function using string concatenation throughout
   // (avoids backtick template literals which would conflict with the bash heredoc)
   const retType = 'RegisterBlockDef<Record<string, bigint>>';
-  const widthArg = widthParam ? ', ' + widthParam + ': number = ' + wordSize : '';
+  const widthArg = widthParam ? ', ' + widthParam + ': IntRange<1, 64> = ' + wordSize : '';
   const factoryFn =
     'export function ' + funcName + ' (' + countParam + ': number' + widthArg + ', resetValues?: bigint[]): { addrMap: Record<string, bigint>, def: ' + retType + ' } {\n' +
     '  const addrMap: Record<string, bigint> = {}\n' +
@@ -154,6 +155,7 @@ if (def.repeatedRegister) {
     banner,
     '',
     "import { type RegisterBlockDef, RegisterType } from 'tssv/lib/core/Registers'",
+    ...(widthTypeImport ? [widthTypeImport] : []),
     '',
     jsdocLines,
     factoryFn,
