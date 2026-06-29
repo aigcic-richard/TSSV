@@ -7,14 +7,15 @@ import { type RegisterBlockDef, RegisterType } from 'tssv/lib/core/Registers'
  *
  * Generates one register per numTaps. Template (repeated `numTaps` times):
  *
- * | Register  | Address         | Type | Width | Description             |
- * | --------- | --------------- | ---- | ----- | ----------------------- |
- * | COEFF_{i} | 0x0000000 + i*4 | RW   | 32    | FIR tap {i} coefficient |
+ * | Register  | Address         | Type | Width             | Description             |
+ * | --------- | --------------- | ---- | ----------------- | ----------------------- |
+ * | COEFF_{i} | 0x0000000 + i*4 | RW   | coefficientsWidth | FIR tap {i} coefficient |
  *
  * @param numTaps   Number of registers to generate
+ * @param coefficientsWidth  Register bit width (defaults to 32)
  * @param resetValues  Optional reset value per register (defaults to 0n)
  */
-export function createFirCoeffsDef (numTaps: number, resetValues?: bigint[]): { addrMap: Record<string, bigint>, def: RegisterBlockDef<Record<string, bigint>> } {
+export function createFirCoeffsDef (numTaps: number, coefficientsWidth: number = 32, resetValues?: bigint[]): { addrMap: Record<string, bigint>, def: RegisterBlockDef<Record<string, bigint>> } {
   const addrMap: Record<string, bigint> = {}
   const registers: RegisterBlockDef<Record<string, bigint>>['registers'] = {}
   for (let i = 0; i < numTaps; i++) {
@@ -23,7 +24,7 @@ export function createFirCoeffsDef (numTaps: number, resetValues?: bigint[]): { 
     registers[regName] = {
       type: RegisterType.RW,
       isSigned: true,
-      width: 32,
+      width: coefficientsWidth,
       reset: resetValues?.[i] ?? 0n,
       description: 'FIR tap ' + i + ' coefficient'
     }

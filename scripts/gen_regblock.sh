@@ -92,24 +92,22 @@ if (def.repeatedRegister) {
   const typ        = rr.type          ?? 'RW';
   const isSigned   = rr.isSigned      ?? false;
   const width      = rr.width         ?? wordSize;
+  const widthParam = rr.widthParam;
   const desc       = rr.description   ?? '';
   const funcName   = 'create' + name.charAt(0).toUpperCase() + name.slice(1) + 'Def';
+  const widthExpr  = widthParam ?? String(width);
 
   const templateRow = [
     prefix + '{i}',
     '0x' + '0'.repeat(hexDigits - 1) + ' + i*' + stride,
     typ,
-    String(width),
+    widthExpr,
     desc.replace('{i}', '{i}')
   ];
   const templateTable = mdTable(
     ['Register', 'Address', 'Type', 'Width', 'Description'],
     [templateRow]
   );
-
-  const ifaceImport = busIface === 'TL_UL'
-    ? "import { TL_UL } from 'tssv/lib/interfaces/AMBA/TL_UL'"
-    : "import { Memory } from 'tssv/lib/interfaces/Memory'";
 
   const jsdocLines = [
     '/**',
@@ -120,6 +118,7 @@ if (def.repeatedRegister) {
     ' * ' + templateTable,
     ' *',
     ' * @param ' + countParam + '   Number of registers to generate',
+    ...(widthParam ? [' * @param ' + widthParam + '  Register bit width (defaults to ' + wordSize + ')'] : []),
     ' * @param resetValues  Optional reset value per register (defaults to 0n)',
     ' */'
   ].join('\n');
@@ -130,8 +129,9 @@ if (def.repeatedRegister) {
   // Build the factory function using string concatenation throughout
   // (avoids backtick template literals which would conflict with the bash heredoc)
   const retType = 'RegisterBlockDef<Record<string, bigint>>';
+  const widthArg = widthParam ? ', ' + widthParam + ': number = ' + wordSize : '';
   const factoryFn =
-    'export function ' + funcName + ' (' + countParam + ': number, resetValues?: bigint[]): { addrMap: Record<string, bigint>, def: ' + retType + ' } {\n' +
+    'export function ' + funcName + ' (' + countParam + ': number' + widthArg + ', resetValues?: bigint[]): { addrMap: Record<string, bigint>, def: ' + retType + ' } {\n' +
     '  const addrMap: Record<string, bigint> = {}\n' +
     '  const registers: RegisterBlockDef<Record<string, bigint>>[\'registers\'] = {}\n' +
     '  for (let i = 0; i < ' + countParam + '; i++) {\n' +
@@ -139,7 +139,7 @@ if (def.repeatedRegister) {
     '    addrMap[regName] = BigInt(i * ' + stride + ')\n' +
     '    registers[regName] = {\n' +
     '      type: RegisterType.' + typ + ',' + signedLine + '\n' +
-    '      width: ' + width + ',\n' +
+    '      width: ' + widthExpr + ',\n' +
     '      reset: resetValues?.[i] ?? 0n,\n' +
     '      description: \'' + descTemplate + '\'\n' +
     '    }\n' +
@@ -154,7 +154,6 @@ if (def.repeatedRegister) {
     banner,
     '',
     "import { type RegisterBlockDef, RegisterType } from 'tssv/lib/core/Registers'",
-    ifaceImport,
     '',
     jsdocLines,
     factoryFn,

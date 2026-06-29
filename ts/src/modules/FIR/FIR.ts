@@ -6,6 +6,7 @@ import { createFirCoeffsDef } from './regs-fir_coeffs.js'
 
 type coeffType = bigint[]
 type inOutWidthType = TSSV.IntRange<1, 32>
+type coeffWidthType = TSSV.IntRange<2, 32>
 type rShiftType = TSSV.IntRange<0, 32>
 /**
  * configuration parameters of the FIR module
@@ -21,6 +22,10 @@ export interface FIR_Parameters extends TSSV.TSSVParameters {
      */
   coefficients?: coeffType
   /**
+     * bit width of the FIR coefficient registers
+     */
+  coefficientsWidth?: coeffWidthType
+  /**
      * bit width of the FIR input data
      */
   inWidth?: inOutWidthType
@@ -35,9 +40,10 @@ export interface FIR_Parameters extends TSSV.TSSVParameters {
   rShift?: rShiftType
 }
 
-type FIR_ParamsNorm = Omit<FIR_Parameters, 'coefficients' | 'inWidth' | 'outWidth' | 'rShift'> & {
+type FIR_ParamsNorm = Omit<FIR_Parameters, 'coefficients' | 'coefficientsWidth' | 'inWidth' | 'outWidth' | 'rShift'> & {
   numTaps: number
   coefficients: coeffType
+  coefficientsWidth: coeffWidthType
   inWidth: inOutWidthType
   outWidth: inOutWidthType
   rShift: rShiftType
@@ -51,6 +57,7 @@ function normalizeFIRParams (p: FIR_Parameters): FIR_ParamsNorm {
   return {
     ...p,
     coefficients: (p.coefficients ?? Array(p.numTaps).fill(0n)) as coeffType,
+    coefficientsWidth: (p.coefficientsWidth ?? 32),
     inWidth: (p.inWidth ?? 8),
     outWidth: (p.outWidth ?? 9),
     rShift: (p.rShift ?? 2)
@@ -95,6 +102,15 @@ export class FIR extends TSSV.Module<FIR_ParamsNorm, FIR_Ports> {
     const params = normalizeFIRParams(paramsIn)
     super(params)
 
+    if (this.params.coefficientsWidth < 2 || this.params.coefficientsWidth > 32) {
+      throw Error(`FIR: coefficientsWidth must be between 2 and 32 bits, got ${this.params.coefficientsWidth}`)
+    }
+    for (const coefficient of this.params.coefficients) {
+      if (this.bitWidth(coefficient, coefficient < 0n) > this.params.coefficientsWidth) {
+        throw Error(`FIR: coefficient ${coefficient.toString()} does not fit in coefficientsWidth ${this.params.coefficientsWidth}`)
+      }
+    }
+
     // flat clock/reset ports (used internally by addRegister)
     this.IOs = {
       clk: { direction: 'input', isClock: 'posedge' },
@@ -127,12 +143,12 @@ export class FIR extends TSSV.Module<FIR_ParamsNorm, FIR_Ports> {
 
     // build coefficient register block from factory (fir_coeffs.yaml → regs-fir_coeffs.ts)
     const numTaps = this.params.numTaps
-    const { def: coeffDef } = createFirCoeffsDef(numTaps, this.params.coefficients)
+    const { def: coeffDef } = createFirCoeffsDef(numTaps, this.params.coefficientsWidth, this.params.coefficients)
 
     // pre-declare signals that will receive each coefficient from the register block
     const coeffSigs: TSSV.Sig[] = []
     for (let i = 0; i < numTaps; i++) {
-      coeffSigs.push(this.addSignal(`coeff_${i}`, { width: 32, isSigned: true }))
+      coeffSigs.push(this.addSignal(`coeff_${i}`, { width: this.params.coefficientsWidth, isSigned: true }))
     }
 
     const coeffRegBlock = new RegisterBlock<Record<string, bigint>>(
