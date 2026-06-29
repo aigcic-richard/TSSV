@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs'
+import { runVerible } from '../tools/formatters/verible.js'
 
 /**
  * IntRange type allows specifify a type that allows a range of integer values
@@ -126,6 +127,14 @@ interface OperationIO {
   result?: string | Sig
 }
 
+export interface FormatterConfig {
+  engine: 'verible' | 'internal' | 'off'
+  veriblePath?: string
+  veribleFlags?: string[]
+  failOnFormatError?: boolean
+  formatTimeoutMs?: number
+}
+
 enum BinaryOp {
   MULTIPLY = '*',
   ADD = '+',
@@ -215,6 +224,7 @@ export class Module<P extends TSSVParameters = TSSVParameters, IO extends IOSign
 
   protected params: P
   protected IOs: IO
+  protected static formatterConfig: FormatterConfig = { engine: 'off' }
   protected signals: Signals
   protected submodules: Record<string, {
     module: Module
@@ -268,6 +278,10 @@ export class Module<P extends TSSVParameters = TSSVParameters, IO extends IOSign
         throw Error(`unsupported type of parameter ${param} in setVerilogParameter()`)
       }
     }
+  }
+
+  static setFormatterConfig (config: FormatterConfig): void {
+    Module.formatterConfig = config
   }
 
   protected bindingRules = {
@@ -1109,6 +1123,74 @@ ${caseAssignments}
   }
 
   /**
+   * Append a raw SystemVerilog snippet to this module's body.
+   *
+   * By default (`indentMode: 'normalize'`), the snippet is normalized before
+   * being appended:
+   * - Leading and trailing blank lines are removed.
+   * - The minimum indentation shared by all non-empty lines is stripped.
+   * - Three spaces of indentation are added to every line so the result sits
+   *   correctly inside the generated `module … endmodule` block.
+   * - A single trailing newline is guaranteed.
+   *
+   * This makes it safe to pass indented template literals directly from
+   * TypeScript without worrying about the surrounding indentation level:
+   *
+   * Pass `indentMode: 'verbatim'` to append the string exactly as-is, with no
+   * whitespace processing. Use this when the snippet is already correctly
+   * formatted or when preserving exact spacing is required.
+   *
+   * @param body - SystemVerilog text to append.
+   * @param opts - Optional settings.
+   * @param opts.indentMode - `'normalize'` (default) strips and re-indents;
+   *   `'verbatim'` appends without modification.
+   */
+  addBody (body: string, opts?: { indentMode?: 'normalize' | 'verbatim' }): void {
+    if (opts?.indentMode === 'verbatim') {
+      this.body += body
+      return
+    }
+
+    const lines = body.split('\n')
+
+    // trim leading blank lines
+    while (lines.length > 0 && lines[0].trim() === '') lines.shift()
+    // trim trailing blank lines
+    while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop()
+
+    if (lines.length === 0) return
+
+    // compute minimum left indent across non-empty lines
+    const minIndent = lines
+      .filter(line => line.trim() !== '')
+      .reduce((min, line) => {
+        const match = line.match(/^(\s*)/)
+        return Math.min(min, match ? match[1].length : 0)
+      }, Infinity)
+
+    const indent = '   '
+    const stripped = lines
+      .map(line => line.trim() === '' ? '' : indent + line.slice(minIndent === Infinity ? 0 : minIndent))
+      .join('\n')
+
+    this.body += stripped + '\n'
+  }
+
+  /**
+   * Append a single pre-formatted SystemVerilog line to this module's body.
+   *
+   * The line is appended verbatim with a trailing newline added. No indentation
+   * normalization is performed — the caller is responsible for any leading
+   * whitespace. Use {@link addBody} when passing multi-line template literals
+   * that benefit from automatic indent stripping.
+   *
+   * @param line - A single line of SystemVerilog text (no trailing newline needed).
+   */
+  addBodyLine (line: string): void {
+    this.body += line + '\n'
+  }
+
+  /**
      * print some debug information to the console
      */
   debug (): void {
@@ -1217,10 +1299,21 @@ ${caseAssignments}
     }
     Module.svGenDepth++
     try {
-      return this._writeSystemVerilog()
+      const sv = this._writeSystemVerilog()
+      if (Module.svGenDepth === 1 && Module.formatterConfig.engine !== 'off') {
+        return this.applyFormatter(sv)
+      }
+      return sv
     } finally {
       Module.svGenDepth--
     }
+  }
+
+  private applyFormatter (sv: string): string {
+    if (Module.formatterConfig.engine === 'verible') {
+      return runVerible(sv, Module.formatterConfig)
+    }
+    return sv
   }
 
   private _writeSystemVerilog (): string {
@@ -1393,23 +1486,22 @@ ${bindingsArray.join(',\n')}
 `
     }
 
-    const verilog: string =
-`
-${interfacesString}
-${subModulesString}
+    // returns s with a guaranteed trailing newline, or '' if s is blank
+    const opt = (s: string): string => {
+      if (!s.trim()) return ''
+      return s.endsWith('\n') ? s : s + '\n'
+    }
 
-/* verilator lint_off WIDTH */
+    const verilog: string =
+`${opt(interfacesString)}${opt(subModulesString)}/* verilator lint_off WIDTH */
 module ${this.name} ${paramsString}
    (
 ${IOString}
    );
-${this.formatParametersAsVerilogComment(this.params)}
-${signalString}
-
-${this.body}
-${generatedBody}
+${opt(this.formatParametersAsVerilogComment(this.params))}${opt(signalString)}
+${opt(this.body)}${opt(generatedBody)}
 endmodule
-/* verilator lint_on WIDTH */        
+/* verilator lint_on WIDTH */
 `
 
     return verilog
