@@ -276,28 +276,39 @@ export declare class Module<P extends TSSVParameters = TSSVParameters, IO extend
     /**
      * Append a raw SystemVerilog snippet to this module's body.
      *
-     * By default (`indentMode: 'normalize'`), the snippet is normalized before
+     * By default (`indentMode: 'relative'`), the snippet is normalized before
      * being appended:
      * - Leading and trailing blank lines are removed.
-     * - The minimum indentation shared by all non-empty lines is stripped.
+     * - The minimum indentation shared by all non-empty lines is stripped,
+     *   so indentation is computed relative to the snippet's own left margin.
      * - Three spaces of indentation are added to every line so the result sits
      *   correctly inside the generated `module … endmodule` block.
      * - A single trailing newline is guaranteed.
      *
      * This makes it safe to pass indented template literals directly from
-     * TypeScript without worrying about the surrounding indentation level:
+     * TypeScript without worrying about the surrounding indentation level.
      *
-     * Pass `indentMode: 'verbatim'` to append the string exactly as-is, with no
-     * whitespace processing. Use this when the snippet is already correctly
-     * formatted or when preserving exact spacing is required.
+     * Pass `indentMode: 'verbatim'` to append the string exactly as-is, skipping
+     * the indent stripping and re-indentation. The trim and newline options still
+     * apply in verbatim mode.
      *
      * @param body - SystemVerilog text to append.
      * @param opts - Optional settings.
-     * @param opts.indentMode - `'normalize'` (default) strips and re-indents;
-     *   `'verbatim'` appends without modification.
+     * @param opts.indentMode - `'relative'` (default) strips and re-indents
+     *   relative to the snippet's own minimum indent; `'verbatim'` appends
+     *   without modifying indentation.
+     * @param opts.trimLeadingBlankLines - Remove blank lines at the start of the
+     *   snippet before processing. Defaults to `true`.
+     * @param opts.trimTrailingBlankLines - Remove blank lines at the end of the
+     *   snippet before processing. Defaults to `true`.
+     * @param opts.ensureTrailingNewline - Guarantee the appended text ends with
+     *   a newline. Defaults to `true`.
      */
     addBody(body: string, opts?: {
-        indentMode?: 'normalize' | 'verbatim';
+        indentMode?: 'relative' | 'verbatim';
+        trimLeadingBlankLines?: boolean;
+        trimTrailingBlankLines?: boolean;
+        ensureTrailingNewline?: boolean;
     }): void;
     /**
      * Append a single pre-formatted SystemVerilog line to this module's body.

@@ -1125,40 +1125,56 @@ ${caseAssignments}
   /**
    * Append a raw SystemVerilog snippet to this module's body.
    *
-   * By default (`indentMode: 'normalize'`), the snippet is normalized before
+   * By default (`indentMode: 'relative'`), the snippet is normalized before
    * being appended:
    * - Leading and trailing blank lines are removed.
-   * - The minimum indentation shared by all non-empty lines is stripped.
+   * - The minimum indentation shared by all non-empty lines is stripped,
+   *   so indentation is computed relative to the snippet's own left margin.
    * - Three spaces of indentation are added to every line so the result sits
    *   correctly inside the generated `module … endmodule` block.
    * - A single trailing newline is guaranteed.
    *
    * This makes it safe to pass indented template literals directly from
-   * TypeScript without worrying about the surrounding indentation level:
+   * TypeScript without worrying about the surrounding indentation level.
    *
-   * Pass `indentMode: 'verbatim'` to append the string exactly as-is, with no
-   * whitespace processing. Use this when the snippet is already correctly
-   * formatted or when preserving exact spacing is required.
+   * Pass `indentMode: 'verbatim'` to append the string exactly as-is, skipping
+   * the indent stripping and re-indentation. The trim and newline options still
+   * apply in verbatim mode.
    *
    * @param body - SystemVerilog text to append.
    * @param opts - Optional settings.
-   * @param opts.indentMode - `'normalize'` (default) strips and re-indents;
-   *   `'verbatim'` appends without modification.
+   * @param opts.indentMode - `'relative'` (default) strips and re-indents
+   *   relative to the snippet's own minimum indent; `'verbatim'` appends
+   *   without modifying indentation.
+   * @param opts.trimLeadingBlankLines - Remove blank lines at the start of the
+   *   snippet before processing. Defaults to `true`.
+   * @param opts.trimTrailingBlankLines - Remove blank lines at the end of the
+   *   snippet before processing. Defaults to `true`.
+   * @param opts.ensureTrailingNewline - Guarantee the appended text ends with
+   *   a newline. Defaults to `true`.
    */
-  addBody (body: string, opts?: { indentMode?: 'normalize' | 'verbatim' }): void {
-    if (opts?.indentMode === 'verbatim') {
-      this.body += body
-      return
-    }
+  addBody (body: string, opts?: {
+    indentMode?: 'relative' | 'verbatim'
+    trimLeadingBlankLines?: boolean
+    trimTrailingBlankLines?: boolean
+    ensureTrailingNewline?: boolean
+  }): void {
+    const trimLeading = opts?.trimLeadingBlankLines ?? true
+    const trimTrailing = opts?.trimTrailingBlankLines ?? true
+    const ensureNewline = opts?.ensureTrailingNewline ?? true
 
     const lines = body.split('\n')
 
-    // trim leading blank lines
-    while (lines.length > 0 && lines[0].trim() === '') lines.shift()
-    // trim trailing blank lines
-    while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop()
+    if (trimLeading) while (lines.length > 0 && lines[0].trim() === '') lines.shift()
+    if (trimTrailing) while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop()
 
     if (lines.length === 0) return
+
+    if (opts?.indentMode === 'verbatim') {
+      const result = lines.join('\n')
+      this.body += ensureNewline && !result.endsWith('\n') ? result + '\n' : result
+      return
+    }
 
     // compute minimum left indent across non-empty lines
     const minIndent = lines
@@ -1173,7 +1189,7 @@ ${caseAssignments}
       .map(line => line.trim() === '' ? '' : indent + line.slice(minIndent === Infinity ? 0 : minIndent))
       .join('\n')
 
-    this.body += stripped + '\n'
+    this.body += ensureNewline ? stripped + '\n' : stripped
   }
 
   /**
