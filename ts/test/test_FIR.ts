@@ -9,15 +9,18 @@ const myFir3 = new FIR(
     name: 'myFIR3',
     numTaps: 13,
     coefficients: [-1n, 0n, 5n, -6n, -10n, 38n, 77n, 38n, -10n, -6n, 5n, 0n, -1n],
+    coefficientsWidth: 8,
     inWidth: 8,
     outWidth: 8,
     rShift: 7
   })
+const myFir3Sv = myFir3.writeSystemVerilog()
 try {
-  writeFileSync('sv-examples/FIR/myFIR3/myFIR3.sv', myFir3.writeSystemVerilog())
+  writeFileSync('sv-examples/FIR/myFIR3/myFIR3.sv', myFir3Sv)
 } catch (err) {
   console.error(err)
 }
+
 
 const tbBody =
 `

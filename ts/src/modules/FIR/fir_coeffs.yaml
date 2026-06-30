@@ -11,8 +11,8 @@ busAddressWidth: 32
 repeatedRegister:
   namePrefix: COEFF_
   countParam: numTaps
+  widthParam: coefficientsWidth
   addressStride: 4
   type: RW
   isSigned: true
-  width: 32
   description: "FIR tap {i} coefficient"
