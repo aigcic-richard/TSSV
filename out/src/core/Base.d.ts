@@ -73,6 +73,13 @@ interface OperationIO {
     b: string | Sig | bigint;
     result?: string | Sig;
 }
+export interface FormatterConfig {
+    engine: 'verible' | 'internal' | 'off';
+    veriblePath?: string;
+    veribleFlags?: string[];
+    failOnFormatError?: boolean;
+    formatTimeoutMs?: number;
+}
 declare enum BinaryOp {
     MULTIPLY = "*",
     ADD = "+",
@@ -108,6 +115,7 @@ export declare class Module<P extends TSSVParameters = TSSVParameters, IO extend
     readonly name: string;
     protected params: P;
     protected IOs: IO;
+    protected static formatterConfig: FormatterConfig;
     protected signals: Signals;
     protected submodules: Record<string, {
         module: Module;
@@ -123,6 +131,7 @@ export declare class Module<P extends TSSVParameters = TSSVParameters, IO extend
        */
     constructor(params?: P, IOs?: IO, signals?: {}, body?: string);
     setVerilogParameter(param: string): void;
+    static setFormatterConfig(config: FormatterConfig): void;
     protected bindingRules: {
         input: string[];
         output: string[];
@@ -265,6 +274,54 @@ export declare class Module<P extends TSSVParameters = TSSVParameters, IO extend
         default?: string | Sig | Expr;
     }): Sig;
     /**
+     * Append a raw SystemVerilog snippet to this module's body.
+     *
+     * By default (`indentMode: 'relative'`), the snippet is normalized before
+     * being appended:
+     * - Leading and trailing blank lines are removed.
+     * - The minimum indentation shared by all non-empty lines is stripped,
+     *   so indentation is computed relative to the snippet's own left margin.
+     * - Three spaces of indentation are added to every line so the result sits
+     *   correctly inside the generated `module … endmodule` block.
+     * - A single trailing newline is guaranteed.
+     *
+     * This makes it safe to pass indented template literals directly from
+     * TypeScript without worrying about the surrounding indentation level.
+     *
+     * Pass `indentMode: 'verbatim'` to append the string exactly as-is, skipping
+     * the indent stripping and re-indentation. The trim and newline options still
+     * apply in verbatim mode.
+     *
+     * @param body - SystemVerilog text to append.
+     * @param opts - Optional settings.
+     * @param opts.indentMode - `'relative'` (default) strips and re-indents
+     *   relative to the snippet's own minimum indent; `'verbatim'` appends
+     *   without modifying indentation.
+     * @param opts.trimLeadingBlankLines - Remove blank lines at the start of the
+     *   snippet before processing. Defaults to `true`.
+     * @param opts.trimTrailingBlankLines - Remove blank lines at the end of the
+     *   snippet before processing. Defaults to `true`.
+     * @param opts.ensureTrailingNewline - Guarantee the appended text ends with
+     *   a newline. Defaults to `true`.
+     */
+    addBody(body: string, opts?: {
+        indentMode?: 'relative' | 'verbatim';
+        trimLeadingBlankLines?: boolean;
+        trimTrailingBlankLines?: boolean;
+        ensureTrailingNewline?: boolean;
+    }): void;
+    /**
+     * Append a single pre-formatted SystemVerilog line to this module's body.
+     *
+     * The line is appended verbatim with a trailing newline added. No indentation
+     * normalization is performed — the caller is responsible for any leading
+     * whitespace. Use {@link addBody} when passing multi-line template literals
+     * that benefit from automatic indent stripping.
+     *
+     * @param line - A single line of SystemVerilog text (no trailing newline needed).
+     */
+    addBodyLine(line: string): void;
+    /**
        * print some debug information to the console
        */
     debug(): void;
@@ -290,6 +347,7 @@ export declare class Module<P extends TSSVParameters = TSSVParameters, IO extend
        * @returns string containing the generated SystemVerilog code for this module
        */
     writeSystemVerilog(): string;
+    private applyFormatter;
     private _writeSystemVerilog;
     protected body: string;
     protected registerBlocks: Record<string, Record<string, Record<string, Record<string, {
